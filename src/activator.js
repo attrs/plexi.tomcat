@@ -50,8 +50,7 @@ module.exports = {
 		httpService.filter('tomcat', {
 			pattern: ['**/*.jsp', '/servlets/**', '**/*.jspx', '**/*.do', '/WEB-INF/**'],
 			filter: function(req, res, next) {
-				if( !req.docbase ) return next(new Error('[tomcat] req.docbase required'));
-				
+				if( !req.docbase ) return next(new Error('[tomcat] req.docbase required'));				
 				if( ~req.path.toLowerCase().indexOf('/web-inf/') ) return res.sendStatus(404);
 				
 				var first;
@@ -68,15 +67,16 @@ module.exports = {
 						path: context.path + req.url,
 						method: req.method
 					}, function(response) {
-						console.log('URL', context.path + req.url);
-						console.log('STATUS: ' + response.statusCode);
-						console.log('HEADERS: ' + JSON.stringify(response.headers));
+						//console.log('URL', context.path + req.url);
+						//console.log('STATUS: ' + response.statusCode);
+						//console.log('HEADERS: ' + JSON.stringify(response.headers));
 						
 						res.statusCode = response.statusCode;
 						response.setEncoding('utf8');
 						
 						//res.cookie('name', 'tobi', { domain: '.example.com', path: '/admin', secure: true })
-						res.setHeader('Set-Cookie', response.headers['set-cookie']);
+						var cookie = response.headers['set-cookie'];
+						if( cookie ) res.setHeader('Set-Cookie', cookie);
 						
 						var payload = '';
 						response.on('data', function (chunk) {
