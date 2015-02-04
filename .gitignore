@@ -22,3 +22,4 @@ data
 npm-debug.log
 apache-tomcat-8.0.15/logs/*
 apache-tomcat-8.0.15/work/*
+apache-tomcat-8.0.15/conf/Catalina/localhost/*

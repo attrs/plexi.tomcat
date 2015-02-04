@@ -1,7 +1,6 @@
 var path = require('path');
 var fs = require('fs');
 var exec = require('child_process').exec;
-var spawn = require('child_process').spawn;
 var xml2js = require('xml2js');
 
 var rmdirRecursive = function(path, includeself) {
@@ -55,11 +54,11 @@ var createContext = function(docbase, options) {
 	options = options || {};
 	options.docbase = docbase;
 	options.name = options.name || 'ctx-' + (seq++);
-	options.path = '/' + options.name;
+	options.path = 'path' in options ? options.path : '/' + options.name;
 	
 	contexts[docbase] = options;
 	
-	var text = '<?xml version="1.0" encoding="utf-8"?>\n<Context docBase="' + docbase + '"></Context>';
+	var text = '<?xml version="1.0" encoding="utf-8"?>\n<Context path="' + options.path + '" docBase="' + docbase + '"></Context>';
 	fs.writeFileSync(path.resolve(contextdir, options.name + '.xml'), text, {encoding:'utf8'});
 	
 	console.log('[tomcat] context created. [' + docbase + '"]');
@@ -80,17 +79,13 @@ var removeContext = function(docbase) {
 	return ctx;
 };
 
-var clearcontexts = function() {
+var clearContexts = function() {
 	rmdirRecursive(contextdir, false);
 	contexts = {};
 };
 
-var config = function(config) {
-	new xml2js.Parser().parseString(fs.readFileSync(serverxml), function (err, result) {
-        console.log('xml', result.Server.Service[0].Engine[0].Host[0]); //JSON.stringify(result, null, '\t'));
-		var host = result.Server.Service[0].Engine[0].Host[0];
-		
-		/*
+/*
+	config: {
 		"appBase": "webapps",
 		"autoDeploy": true,
 		"unpackWARs": true,
@@ -99,7 +94,12 @@ var config = function(config) {
 			"prefix": "localhost_access_log",
 			"suffix": ".txt",
 			"pattern": "%h %l %u %t &quot;%r&quot; %s %b"
-		}*/
+		}
+	}
+*/
+var config = function(config) {
+	new xml2js.Parser().parseString(fs.readFileSync(serverxml), function (err, result) {
+		var host = result.Server.Service[0].Engine[0].Host[0];
 		
 		host.$.appBase = config.appBase ? path.resolve(process.cwd(), config.appBase) : 'webapps';
 		host.$.autoDeploy = config.autoDeploy === false ? false : true;
@@ -119,7 +119,8 @@ var config = function(config) {
 };
 
 var changePort = function(port) {
-	if( typeof port !== 'number' || port <= 0 ) return console.error('illegal port', port);
+	port = parseInt(port);
+	if( !port || isNaN(port) || typeof port !== 'number' || port <= 0 ) return console.error('illegal port', port);
 	
 	var data = fs.readFileSync(serverxml);
 	new xml2js.Parser().parseString(data, function (err, result) {
@@ -161,7 +162,7 @@ module.exports = {
 	set port(port) {
 		changePort(port); 
 	},
-	clearcontexts: clearcontexts,
+	clearContexts: clearContexts,
 	startup: startup,
 	shutdown: shutdown,
 	createContext: createContext,

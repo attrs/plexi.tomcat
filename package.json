@@ -12,6 +12,8 @@
     "tomcat": "bin/tomcat.js"
   },
   "dependencies": {
+    "attrs.argv": "^0.2.0-a",
+    "tail": "^0.4.0",
     "xml": "^1.0.0",
     "xml2js": "^0.4.4"
   },

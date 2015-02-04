@@ -8,7 +8,7 @@ module.exports = {
 	start: function(ctx) {
 		var options = ctx.preference;
 		
-		//Tomcat.clearcontexts();
+		Tomcat.clearContexts();
 		
 		Tomcat.env(options.env || {});
 		Tomcat.config(options.config || {});
@@ -37,7 +37,7 @@ module.exports = {
 						headers: req.headers
 					}, function(response) {
 						//console.log('URL', context.path + req.url);
-						//console.log('STATUS: ' + response.statusCode);
+						console.log('STATUS: ' + response.statusCode);
 						//console.log('HEADERS: ' + JSON.stringify(response.headers));
 						
 						res.statusCode = response.statusCode;
