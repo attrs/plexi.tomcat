@@ -4,6 +4,7 @@
 
 var pkg = require('../package.json');
 var path = require('path');
+var fs = require('fs');
 var argv = require('attrs.argv');
 var Tomcat = require('../src/Tomcat.js');
 var Tail = require('tail').Tail;
@@ -13,6 +14,26 @@ process.title = pkg.name;
 var appbase = argv.appbase ? path.resolve(process.cwd(), argv.appbase) : null;
 var docbase = argv.docbase ? path.resolve(process.cwd(), argv.docbase) : null;
 var logdir = argv.logdir ? path.resolve(process.cwd(), argv.logdir) : null;
+
+function starttail() {
+	var file = path.resolve(__dirname, '..', 'apache-tomcat-8.0.15', 'logs', 'catalina.out');
+	
+	if( !fs.existsSync(file) ) {
+		setTimeout(function() {
+			starttail();
+		}, 250);
+		return;
+	}
+	
+	var tail = new Tail(file);
+	tail.on("line", function(line) {
+	  console.log(line);
+	});
+
+	tail.on("error", function(error) {
+	  console.log('ERROR: ', error);
+	});
+}
 
 if( 'stop' in argv || 'shutdown' in argv ) {
 	Tomcat.shutdown();
@@ -42,12 +63,5 @@ if( 'stop' in argv || 'shutdown' in argv ) {
 	Tomcat.shutdown();
 	Tomcat.startup();
 	
-	var tail = new Tail(path.resolve(__dirname, '..', 'apache-tomcat-8.0.15', 'logs', 'catalina.out'));
-	tail.on("line", function(line) {
-	  console.log(line);
-	});
- 
-	tail.on("error", function(error) {
-	  console.log('ERROR: ', error);
-	});
+	starttail();
 }
