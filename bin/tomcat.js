@@ -2,6 +2,8 @@
 
 'use strict';
 
-process.title = 'plexi.tomcat';
+var pkg = require('../package.json');
 
-require('../src/start.js');
+process.title = pkg.name;
+
+require('../src/Tomcat.js').startup();

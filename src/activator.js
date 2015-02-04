@@ -2,75 +2,39 @@ var path = require('path');
 var fs = require('fs');
 var http = require('http');
 var pkg = require('../package.json');
-
-var startup = function() {
-	console.log('[tomcat] started');
-};
-
-var shutdown = function() {
-	console.log('[tomcat] stopped');
-};
-
-var contexts = {}, seq=0;
-var createContext = function(docbase, options) {
-	if( !docbase || typeof docbase !== 'string' ) return console.error('[tomcat] invalid docbase', docbase);
-	if( contexts[docbase] ) return console.error('[tomcat] already exists docbase', docbase);
-	console.log('[tomcat] context created. [' + docbase + '"]');
-	
-	var name = 'ctx-' + (seq++);
-	options = options || {};
-	options.docbase = docbase;
-	options.name = name;
-	options.path = '/' + name;
-	
-	contexts[docbase] = options;
-	return options;
-};
-
-var getContext = function(docbase) {
-	return contexts[docbase];
-};
-
-var removeContext = function(docbase) {
-	console.log('[tomcat] context removed. [' + docbase + '"]');
-	return contexts[docbase];
-};
+var Tomcat = require('./Tomcat.js');
 
 module.exports = {
 	start: function(ctx) {
 		var options = ctx.preference;
 		
+		//Tomcat.clearcontexts();
+		
+		Tomcat.env(options.env || {});
+		Tomcat.config(options.config || {});
+		if( options.port ) Tomcat.port = options.port;
+				
 		var contexts = options.contexts;
 		for(var k in contexts) {
-			createContext(k, contexts[k]);
+			Tomcat.createContext(k, contexts[k]);
 		}
-		
-		startup();
 		
 		var httpService = ctx.require('plexi.http');
 		httpService.filter('tomcat', {
-			pattern: ['**/*.jsp', '/servlets/**', '**/*.jspx', '/WEB-INF/**'],
+			pattern: ['**/*.jsp', '/servlets/**', '**/*.jspx', '/WEB-INF/**', '**/*.servlet', '**/*.do'],
 			filter: function(req, res, next) {
 				if( !req.docbase ) return next(new Error('[tomcat] req.docbase required'));				
 				if( req.path.toLowerCase().indexOf('/web-inf/') === 0 ) return res.sendStatus(404);
 				
-				var context = getContext(req.docbase);
-				if( !context ) context = createContext(req.docbase);
-				
-				var clientcookie = [];
-				for(var k in req.cookies) {
-					clientcookie.push(k + '=' + req.cookies[k]);
-				}
+				var context = Tomcat.getContext(req.docbase) || Tomcat.createContext(req.docbase);
 				
 				var exec = function() {
 					var request = http.request({
 						hostname: 'localhost',
-						port: 28080,
+						port: Tomcat.port,
 						path: context.path + req.url,
 						method: req.method,
-						headers: {
-							Cookie: clientcookie.join('; ')
-						}
+						headers: req.headers
 					}, function(response) {
 						//console.log('URL', context.path + req.url);
 						//console.log('STATUS: ' + response.statusCode);
@@ -78,9 +42,12 @@ module.exports = {
 						
 						res.statusCode = response.statusCode;
 						response.setEncoding('utf8');
-						if( response.headers['content-type'] ) res.setHeader('Content-Type', response.headers['content-type']);
+						res.headers = response.headers;
+						for(var k in response.headers) {
+							res.setHeader(k, response.headers[k]);
+						}
 						
-						//res.cookie('name', 'tobi', { domain: '.example.com', path: '/admin', secure: true })
+						// cookie proxy
 						var cookies = response.headers['set-cookie'];
 						if( typeof cookies === 'string' ) cookies = [cookies];
 						if( cookies ) {
@@ -115,29 +82,11 @@ module.exports = {
 				exec();
 			}
 		});
-		
-		return {
-			startup: function() {
-				return startup;
-			},
-			shutdown: function() {
-				return shutdown();
-			},
-			contexts: function() {
-				return contexts;
-			},
-			createContext: function(docbase, options) {
-				return createContext(docbase, options);
-			},
-			getContext: function(docbase) {
-				return getContext(docbase);
-			},
-			removeContext: function(docbase) 
-				return removeContext(docbase);
-			}
-		};
+
+		Tomcat.startup();
+		return Tomcat;
 	},
 	stop: function(ctx) {
-		shutdown();
+		Tomcat.shutdown();
 	}
 };
