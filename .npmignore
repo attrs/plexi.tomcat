@@ -16,6 +16,9 @@ mongodb/
 download/
 data/
 
-apache-tomcat-8.0.15/logs/*
+apache-tomcat-8.0.15/logs/*.log
+apache-tomcat-8.0.15/logs/*.out
+apache-tomcat-8.0.15/logs/*.txt
 apache-tomcat-8.0.15/work/*
-apache-tomcat-8.0.15/conf/Catalina/localhost/*
+apache-tomcat-8.0.15/conf/Catalina/localhost/*.xml
+
