@@ -7,12 +7,17 @@ var TomcatError = require('./TomcatError.js');
 
 var tomcatrouter = function(options) {
 	return function tomcat(req, res, next) {
-		if( !req.docbase || !fs.existsSync(req.docbase) || !fs.statSync(req.docbase).isDirectory() ) return next();
+		if( !req.docbase || !fs.existsSync(req.docbase) || !fs.statSync(req.docbase).isDirectory() || !fs.existsSync(path.join(req.docbase, req.path)) ) return next();
 		if( req.path.toLowerCase().indexOf('/web-inf/') === 0 ) return next();
 		
 		var context = Tomcat.getContext(req.docbase) || Tomcat.createContext(req.docbase);
 	
 		var exec = function() {
+			/*
+				TODO: context 를 바꿔 접속할 때마다 JSESSIONID 가 갱신되는 이슈..
+				서로 다른 컨텍스트에서 Path=/ctx-n 으로 발급한 JSESSIONID 를 / 로 합치다보니.. 벌어지는 현상.
+				서로 다른 컨텍스트에 접속할때 그 컨텍스트에서 발급한 JSESSIONID 를 다시 넣어서 해결해야 한다.
+			*/
 			var request = http.request({
 				hostname: 'localhost',
 				port: Tomcat.port,
@@ -35,7 +40,7 @@ var tomcatrouter = function(options) {
 					});
 					return;
 				}
-						
+				
 				res.statusCode = response.statusCode;
 				response.setEncoding('utf8');
 				res.headers = response.headers;
