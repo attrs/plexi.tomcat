@@ -37,7 +37,7 @@ module.exports = {
 						headers: req.headers
 					}, function(response) {
 						//console.log('URL', context.path + req.url);
-						console.log('STATUS: ' + response.statusCode);
+						//console.log('STATUS: ' + response.statusCode);
 						//console.log('HEADERS: ' + JSON.stringify(response.headers));
 						
 						res.statusCode = response.statusCode;

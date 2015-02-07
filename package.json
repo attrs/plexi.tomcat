@@ -6,7 +6,10 @@
     "start": "node src/start.js"
   },
   "plexi": {
-    "activator": "src/activator.js"
+    "activator": "src/activator.js",
+	  "dependencies": {
+		  "plexi.http": "*"
+	  }
   },
   "bin": {
     "tomcat": "bin/tomcat.js"
