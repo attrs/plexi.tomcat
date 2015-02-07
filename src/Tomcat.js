@@ -27,7 +27,7 @@ var startup = function() {
 	exec(command, {cwd:cwd, env:ENV}, function(err, stdout, stderr) {
 		if( err ) return console.error('[tomcat] start error', command, err);
 		
-		console.log('[tomcat] started', command);
+		console.log('[tomcat] started', PORT, command);
 	});
 };
 
