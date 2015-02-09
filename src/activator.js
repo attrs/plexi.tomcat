@@ -3,7 +3,9 @@ var fs = require('fs');
 var http = require('http');
 var pkg = require('../package.json');
 var Tomcat = require('./Tomcat.js');
-var TomcatError = require('./TomcatError.js');
+var util = require('./util.js');
+var chalk = require('chalk');
+var TomcatError = util.createErrorType('TomcatError');
 
 var tomcatrouter = function(options) {
 	return function tomcat(req, res, next) {
@@ -11,44 +13,52 @@ var tomcatrouter = function(options) {
 		if( req.path.toLowerCase().indexOf('/web-inf/') === 0 ) return next();
 		
 		var context = Tomcat.getContext(req.docbase) || Tomcat.createContext(req.docbase);
-	
+		var debug = req.app.debug;
+		
 		var exec = function() {
 			/*
 				TODO: context 를 바꿔 접속할 때마다 JSESSIONID 가 갱신되는 이슈..
 				서로 다른 컨텍스트에서 Path=/ctx-n 으로 발급한 JSESSIONID 를 / 로 합치다보니.. 벌어지는 현상.
 				서로 다른 컨텍스트에 접속할때 그 컨텍스트에서 발급한 JSESSIONID 를 다시 넣어서 해결해야 한다.
-			*/
-			var request = http.request({
+			*/			
+			util.forward({
 				hostname: 'localhost',
 				port: Tomcat.port,
 				path: context.path + req.url,
-				method: req.method,
-				headers: req.headers
-			}, function(response) {
-				console.log('STATUS: ' + response.statusCode);
-				//console.log('HEADERS: ' + JSON.stringify(response.headers));
-				if( response.statusCode === 404 ) {
-					return next();
-				} else if( response.statusCode === 500 ) {
-					var payload = '';
-					response.on('data', function (chunk) {
-						payload += chunk;
-					});
-
-					response.on('end', function () {
-						next(new TomcatError(payload || 'unknown'));
-					});
-					return;
+				label: 'tomcat',
+				poweredby: pkg.name + '@' + pkg.version
+			}, req, res)
+			.on('error', function(err, request) {
+				if( debug ) util.debug(pkg.name, 'error', '://' + request.hostname + ':' + request.port + request.path);
+				next(err);
+			})
+			.on('notfound', function(err, request, response) {
+				next();
+			})
+			.on('errorstatus', function(err, request, response) {
+				next(err);
+			})
+			.on('response', function(request, response) {
+				if( debug ) {
+					var status = response.statusCode;
+					if( response.statusCode >= 400 ) status = chalk.red(status);
+					else status = chalk.green(status);
+					
+					util.debug('tomcat', status, request.method, '://localhost:' + Tomcat.port + context.path + req.url);
+					if( debug === 'detail' ) {
+						util.debug(pkg.name, 'request', {
+							hostname: request.hostname,
+							path: request.path,
+							method: req.method,
+							port: request.port,
+							headers: request.headers
+						});
+						util.debug('php', 'response', response.headers);
+					}
 				}
-				
-				res.statusCode = response.statusCode;
-				response.setEncoding('utf8');
-				res.headers = response.headers;
-				for(var k in response.headers) {
-					res.setHeader(k, response.headers[k]);
-				}
-				
-				// cookie proxy
+			})
+			.on('success', function(request, response) {				
+				// change cookie path
 				var cookies = response.headers['set-cookie'];
 				if( typeof cookies === 'string' ) cookies = [cookies];
 				if( cookies ) {
@@ -58,26 +68,7 @@ var tomcatrouter = function(options) {
 					});
 					res.setHeader('Set-Cookie', cookiearg);
 				}
-			
-				var poweredby = (response.headers['x-powered-by'] || '').split(',');
-				poweredby.push(res.getHeader('X-Powered-By') || 'plexi');
-				poweredby.push(pkg.name + '@' + pkg.version);
-				res.setHeader('X-Powered-By', poweredby.join(', '));
-			
-				response.on('data', function (chunk) {
-					res.write(chunk);
-				});
-
-				response.on('end', function () {
-					res.end();
-				});
 			});
-
-			request.on('error', function(err) {
-				next(err);
-			});
-		
-			req.pipe(request, {end:true});
 		};
 	
 		exec();
