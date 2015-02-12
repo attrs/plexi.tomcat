@@ -3,30 +3,31 @@ var fs = require('fs');
 var http = require('http');
 var pkg = require('../package.json');
 var Tomcat = require('./Tomcat.js');
-var util = require('./util.js');
+var util = require('attrs.util');
 var chalk = require('chalk');
 var TomcatError = util.createErrorType('TomcatError');
 
 var tomcatrouter = function(options) {
+	options = options || {};
 	return function tomcat(req, res, next) {
-		if( !req.docbase || !fs.existsSync(req.docbase) || !fs.statSync(req.docbase).isDirectory() || !fs.existsSync(path.join(req.docbase, req.path)) ) return next();
+		if( !req.docbase || !fs.existsSync(req.docbase) ) return next();
 		if( req.path.toLowerCase().indexOf('/web-inf/') === 0 ) return next();
+		if( options.physicalonly && (!fs.statSync(req.docbase).isDirectory() || !fs.existsSync(path.join(req.docbase, req.path))) ) return next();
 		
 		var context = Tomcat.getContext(req.docbase) || Tomcat.createContext(req.docbase);
 		var debug = req.app.debug;
 		
 		var exec = function() {
-			/*
-				TODO: context 를 바꿔 접속할 때마다 JSESSIONID 가 갱신되는 이슈..
-				서로 다른 컨텍스트에서 Path=/ctx-n 으로 발급한 JSESSIONID 를 / 로 합치다보니.. 벌어지는 현상.
-				서로 다른 컨텍스트에 접속할때 그 컨텍스트에서 발급한 JSESSIONID 를 다시 넣어서 해결해야 한다.
-			*/			
+			var requestedcookie = (req.headers['cookie'] || '').split('JSESSIONID-' + context.name + '=').join('JSESSIONID=');
 			util.forward({
 				hostname: 'localhost',
 				port: Tomcat.port,
 				path: context.path + req.url,
 				label: 'tomcat',
-				poweredby: pkg.name + '@' + pkg.version
+				poweredby: pkg.name + '@' + pkg.version,
+				headers: {
+					cookie: requestedcookie
+				}
 			}, req, res)
 			.on('error', function(err, request) {
 				if( debug ) util.debug(pkg.name, 'error', '://' + request.hostname + ':' + request.port + request.path);
@@ -44,7 +45,7 @@ var tomcatrouter = function(options) {
 					if( response.statusCode >= 400 ) status = chalk.red(status);
 					else status = chalk.green(status);
 					
-					util.debug('tomcat', status, request.method, '://localhost:' + Tomcat.port + context.path + req.url);
+					util.debug('tomcat', status, request.method, 'http://localhost:' + Tomcat.port + context.path + req.url);
 					if( debug === 'detail' ) {
 						util.debug(pkg.name, 'request', {
 							hostname: request.hostname,
@@ -57,15 +58,34 @@ var tomcatrouter = function(options) {
 					}
 				}
 			})
-			.on('success', function(request, response) {				
-				// change cookie path
+			.on('success', function(request, response) {
+				/*
+					TODO: context 를 바꿔 접속할 때마다 JSESSIONID 가 갱신되는 이슈..
+					서로 다른 컨텍스트에서 Path=/ctx-n 으로 발급한 JSESSIONID 를 / 로 합치다보니.. 벌어지는 현상.
+					서로 다른 컨텍스트에 접속할때 그 컨텍스트에서 발급한 JSESSIONID 를 다시 넣어서 해결해야 한다.
+					
+					tomcat 으로 부터 받은 쿠키를
+					set-cookie:JSESSIONID=12EB32EAD1CAEDB7CE7FF9A0D267F36C; Path=/ctx-0/; HttpOnly
+					
+					client 에게 보낼때 다음과 같이 보낸다.
+					set-cookie:JSESSIONID-CTX-0=12EB32EAD1CAEDB7CE7FF9A0D267F36C; Path=/; HttpOnly
+					
+					다음요청에서 client 에서 넘어온 쿠키
+					Cookie: JSESSIONID-CTX-0=BBABDF7CE6C3C7ADCEB586DEDFA56724; JSESSIONID-CTX-1=...
+				
+					다시 tomcat 으로 보낼때
+					Cookie: JSESSIONID=BBABDF7CE6C3C7ADCEB586DEDFA56724; JSESSIONID-CTX-1=...
+				*/
 				var cookies = response.headers['set-cookie'];
 				if( typeof cookies === 'string' ) cookies = [cookies];
 				if( cookies ) {
 					var cookiearg = [];
 					cookies.forEach(function(cookie) {
-						cookiearg.push(cookie.split('Path=' + context.path).join('Path='));
+						cookie = cookie.split('Path=' + context.path).join('Path=')
+						.split('JSESSIONID=').join('JSESSIONID-' + context.name + '=');
+						cookiearg.push(cookie);
 					});
+
 					res.setHeader('Set-Cookie', cookiearg);
 				}
 			});
@@ -77,15 +97,15 @@ var tomcatrouter = function(options) {
 
 module.exports = {
 	start: function(ctx) {
-		var options = ctx.preference;
+		var pref = ctx.preference || {};
 		
 		Tomcat.clearContexts();
 		
-		Tomcat.env(options.env || {});
-		Tomcat.config(options.config || {});
-		if( options.port ) Tomcat.port = options.port;
+		Tomcat.env(pref.env || {});
+		Tomcat.config(pref.config || {});
+		if( pref.port ) Tomcat.port = pref.port;
 				
-		var contexts = options.contexts;
+		var contexts = pref.contexts;
 		for(var k in contexts) {
 			Tomcat.createContext(k, contexts[k]);
 		}
@@ -93,7 +113,7 @@ module.exports = {
 		var httpService = ctx.require('plexi.http');
 		httpService.filter('tomcat', {
 			pattern: ['**/*.jsp', '/servlets/**', '**/*.jspx', '/WEB-INF/**', '**/*.servlet', '**/*.do'],
-			filter: tomcatrouter()
+			filter: tomcatrouter(pref.router)
 		});
 
 		Tomcat.startup();
