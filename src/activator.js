@@ -99,6 +99,8 @@ module.exports = {
 	start: function(ctx) {
 		var pref = ctx.preference || {};
 		
+		console.log('pref', pref);
+		
 		Tomcat.clearContexts();
 		
 		Tomcat.env(pref.env || {});

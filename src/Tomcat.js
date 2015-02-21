@@ -21,39 +21,45 @@ var rmdirRecursive = function(path, includeself) {
     }
 };
 
-var ENV = {}, PORT, process;
+var ENV = {}, PORT, tomcat_process;
 var startup = function() {
 	var cwd = path.resolve(__dirname, '../apache-tomcat-8.0.15', 'bin');
 	var command = path.resolve(cwd, 'catalina.sh');
 	
-	if( process ) {
+	if( process.platform.indexOf('win') === 0 ) {
+		command = path.resolve(cwd, 'catalina.bat');
+	}
+	
+	if( tomcat_process ) {
 		util.debug('tomcat', 'already started');
 		return;
 	}
 	
 	util.debug('tomcat', 'starting...', command);
 	
-	process = spawn(command, ['run'], {
+	tomcat_process = spawn(command, ['run'], {
 		encoding: 'utf8',
 		cwd: cwd,
 		env: ENV
 	}).on('close', function (code, signal) {
 		util.debug('tomcat', 'closed', code, signal);
-		process = null;
+		tomcat_process = null;
+	}).on('error', function(err) {
+		util.error('tomcat', 'tomcat_process error', err);
 	});
 	
-	process.stdout.setEncoding('utf8');
-	process.stderr.setEncoding('utf8');
-	process.stdout.on('data', function(data) {
+	tomcat_process.stdout.setEncoding('utf8');
+	tomcat_process.stderr.setEncoding('utf8');
+	tomcat_process.stdout.on('data', function(data) {
 		//console.log(data);
 	});
-	process.stderr.on('data', function (data) {
+	tomcat_process.stderr.on('data', function (data) {
 		//console.error(data);
 	});
 };
 
 var shutdown = function() {
-	if( process ) process.kill();
+	if( tomcat_process ) tomcat_process.kill();
 };
 
 var contexts = {}, seq=0;
@@ -118,14 +124,14 @@ var config = function(config) {
 	new xml2js.Parser().parseString(fs.readFileSync(serverxml), function (err, result) {
 		var host = result.Server.Service[0].Engine[0].Host[0];
 		
-		host.$.appBase = config.appBase ? path.resolve(process.cwd(), config.appBase) : 'webapps';
+		host.$.appBase = config.appBase ? path.resolve(tomcat_process.cwd(), config.appBase) : 'webapps';
 		host.$.autoDeploy = config.autoDeploy === false ? false : true;
 		host.$.unpackWARs = config.unpackWARs === false ? false : true;
 		
 		var log = config.log || {};
 		var valve = host.Valve[0].$ = {};
 		valve.className = 'org.apache.catalina.valves.AccessLogValve';
-		valve.directory = log.directory ? path.resolve(process.cwd(), log.directory) : 'logs';
+		valve.directory = log.directory ? path.resolve(tomcat_process.cwd(), log.directory) : 'logs';
 		valve.prefix = log.prefix || 'localhost_access_log';
 		valve.suffix = log.suffix || '.txt';
 		valve.pattern = log.pattern || '%h %l %u %t &quot;%r&quot; %s %b';
