@@ -1,7 +1,7 @@
 {
   "name": "plexi.tomcat",
   "description": "apache tomcat launcher",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "scripts": {
     "start": "node src/start.js"
   },
