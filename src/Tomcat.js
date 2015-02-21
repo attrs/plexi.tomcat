@@ -1,7 +1,9 @@
 var path = require('path');
 var fs = require('fs');
-var exec = require('child_process').exec;
+var spawn = require('child_process').spawn;
 var xml2js = require('xml2js');
+var util = require('attrs.util');
+var wrench = require('wrench');
 
 var rmdirRecursive = function(path, includeself) {
     var files = [];
@@ -19,33 +21,48 @@ var rmdirRecursive = function(path, includeself) {
     }
 };
 
-var ENV = {}, PORT;
+var ENV = {}, PORT, process;
 var startup = function() {
 	var cwd = path.resolve(__dirname, '../apache-tomcat-8.0.15', 'bin');
-	var command = path.resolve(cwd, 'startup.sh');
-		
-	exec(command, {cwd:cwd, env:ENV}, function(err, stdout, stderr) {
-		if( err ) return console.error('[tomcat] start error', command, err);
-		
-		console.log('[tomcat] started', PORT, command);
+	var command = path.resolve(cwd, 'catalina.sh');
+	
+	if( process ) {
+		util.debug('tomcat', 'already started');
+		return;
+	}
+	
+	util.debug('tomcat', 'starting...', command);
+	
+	process = spawn(command, ['run'], {
+		encoding: 'utf8',
+		cwd: cwd,
+		env: ENV
+	}).on('close', function (code, signal) {
+		util.debug('tomcat', 'closed', code, signal);
+		process = null;
+	});
+	
+	process.stdout.setEncoding('utf8');
+	process.stderr.setEncoding('utf8');
+	process.stdout.on('data', function(data) {
+		//console.log(data);
+	});
+	process.stderr.on('data', function (data) {
+		//console.error(data);
 	});
 };
 
 var shutdown = function() {
-	var cwd = path.resolve(__dirname, '../apache-tomcat-8.0.15', 'bin');
-	var command = path.resolve(cwd, 'shutdown.sh');
-	
-	console.log('[tomcat] try shutdown', command);
-	exec(command, {cwd:cwd, env:ENV}, function (err, stdout, stderr) {
-		if( err ) return console.error('[tomcat] start error', command, err);
-		
-		console.log('[tomcat] stopped', command);
-	});
+	if( process ) process.kill();
 };
 
 var contexts = {}, seq=0;
 var contextdir = path.resolve(__dirname, '..', 'apache-tomcat-8.0.15', 'conf', 'Catalina', 'localhost');
 var serverxml = path.resolve(__dirname, '..', 'apache-tomcat-8.0.15', 'conf', 'server.xml');
+
+if( !fs.existsSync(contextdir) ) {
+	wrench.mkdirSyncRecursive(contextdir, 0777);
+}
 
 var createContext = function(docbase, options) {
 	if( !docbase || typeof docbase !== 'string' ) return console.error('[tomcat] invalid docbase', docbase);
