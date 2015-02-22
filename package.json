@@ -1,7 +1,7 @@
 {
   "name": "plexi.tomcat",
   "description": "apache tomcat launcher",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "scripts": {
     "postinstall": "node src/install.js",
     "start": "node bin/tomcat.js"
