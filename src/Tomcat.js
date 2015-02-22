@@ -13,7 +13,7 @@ try {
 
 var ENV = {}, PORT, tomcat_process;
 
-if( ini.javahome ) ENV.JAVA_HOME = ini;
+if( ini.javahome ) ENV.JAVA_HOME = ini.javahome;
 
 var startup = function() {
 	var cwd = path.resolve(__dirname, '../tomcat', 'bin');
@@ -28,7 +28,7 @@ var startup = function() {
 		return;
 	}
 	
-	util.debug('tomcat', 'starting...', command);
+	util.debug('tomcat', 'starting...', command, ENV);
 	
 	tomcat_process = spawn(command, ['run'], {
 		encoding: 'utf8',
