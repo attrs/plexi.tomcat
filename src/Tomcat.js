@@ -29,7 +29,7 @@ var startup = function(stdout, stderr) {
 	}
 	
 	var env = util.mix({}, ENV);
-	if( env['JAVA_HOME'] && ini.javahome ) env['JAVA_HOME'] = ini.javahome;
+	if( !env['JAVA_HOME'] && ini.javahome ) env['JAVA_HOME'] = ini.javahome;
 	
 	util.debug('tomcat', 'starting...', command, env);
 	
