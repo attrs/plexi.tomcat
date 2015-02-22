@@ -103,7 +103,7 @@ module.exports = {
 			pref = ctx.application.preferences.set('plexi.tomcat', {
 				console: false,
 				env: {
-					"JAVA_HOME": "",
+					"JAVA_HOME": Tomcat.env('JAVA_HOME'),
 					"JAVA_OPTS": "-server -Djava.awt.headless=true -XX:+UseConcMarkSweepGC -XX:MaxPermSize=64m -Xmx256m"
 				},
 				contexts: {	

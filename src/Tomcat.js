@@ -30,6 +30,9 @@ var startup = function(stdout, stderr) {
 	
 	util.debug('tomcat', 'starting...', command, ENV);
 	
+	var env = util.mix({}, ENV);
+	if( env['JAVA_HOME'] && ini.javahome ) env['JAVA_HOME'] = ini.javahome;
+	
 	tomcat_process = spawn(command, ['run'], {
 		encoding: 'utf8',
 		cwd: cwd,
