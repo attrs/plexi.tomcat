@@ -28,15 +28,15 @@ var startup = function(stdout, stderr) {
 		return;
 	}
 	
-	util.debug('tomcat', 'starting...', command, ENV);
-	
 	var env = util.mix({}, ENV);
 	if( env['JAVA_HOME'] && ini.javahome ) env['JAVA_HOME'] = ini.javahome;
+	
+	util.debug('tomcat', 'starting...', command, env);
 	
 	tomcat_process = spawn(command, ['run'], {
 		encoding: 'utf8',
 		cwd: cwd,
-		env: ENV
+		env: env
 	}).on('close', function (code, signal) {
 		util.debug('tomcat', 'closed', code, signal);
 		tomcat_process = null;
