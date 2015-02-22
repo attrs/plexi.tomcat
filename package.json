@@ -4,7 +4,7 @@
   "version": "0.1.6",
   "scripts": {
     "postinstall": "node src/install.js",
-    "start": "node src/start.js"
+    "start": "node bin/tomcat.js"
   },
   "plexi": {
     "activator": "src/activator.js",
@@ -15,13 +15,19 @@
   "bin": {
     "tomcat": "bin/tomcat.js"
   },
+  "main": "index.js",
   "dependencies": {
     "attrs.util": "^0.1.0",
     "chalk": "^0.5.1",
+    "decompress-tar": "^2.0.2",
+    "download": "^3.3.0",
+    "download-status": "^2.1.0",
     "ini": "^1.3.3",
     "inquirer": "^0.8.0",
     "osenv": "^0.1.0",
+    "progress": "^1.1.8",
     "tail": "^0.4.0",
+    "tar.gz": "^0.1.1",
     "wrench": "^1.5.8",
     "xml": "^1.0.0",
     "xml2js": "^0.4.4"

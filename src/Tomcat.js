@@ -23,7 +23,7 @@ var rmdirRecursive = function(path, includeself) {
 
 var ENV = {}, PORT, tomcat_process;
 var startup = function() {
-	var cwd = path.resolve(__dirname, '../apache-tomcat-8.0.15', 'bin');
+	var cwd = path.resolve(__dirname, '../tomcat', 'bin');
 	var command = path.resolve(cwd, 'catalina.sh');
 	
 	if( process.platform.indexOf('win') === 0 ) {
@@ -63,8 +63,8 @@ var shutdown = function() {
 };
 
 var contexts = {}, seq=0;
-var contextdir = path.resolve(__dirname, '..', 'apache-tomcat-8.0.15', 'conf', 'Catalina', 'localhost');
-var serverxml = path.resolve(__dirname, '..', 'apache-tomcat-8.0.15', 'conf', 'server.xml');
+var contextdir = path.resolve(__dirname, '..', 'tomcat', 'conf', 'Catalina', 'localhost');
+var serverxml = path.resolve(__dirname, '..', 'tomcat', 'conf', 'server.xml');
 
 if( !fs.existsSync(contextdir) ) {
 	wrench.mkdirSyncRecursive(contextdir, 0777);
@@ -121,21 +121,13 @@ var clearContexts = function() {
 	}
 */
 var config = function(config) {
-	new xml2js.Parser().parseString(fs.readFileSync(serverxml), function (err, result) {
+	new xml2js.Parser().parseString(fs.readFileSync(serverxml), function (err, result) {		
 		var host = result.Server.Service[0].Engine[0].Host[0];
 		
 		host.$.appBase = config.appBase ? path.resolve(tomcat_process.cwd(), config.appBase) : 'webapps';
 		host.$.autoDeploy = config.autoDeploy === false ? false : true;
 		host.$.unpackWARs = config.unpackWARs === false ? false : true;
-		
-		var log = config.log || {};
-		var valve = host.Valve[0].$ = {};
-		valve.className = 'org.apache.catalina.valves.AccessLogValve';
-		valve.directory = log.directory ? path.resolve(tomcat_process.cwd(), log.directory) : 'logs';
-		valve.prefix = log.prefix || 'localhost_access_log';
-		valve.suffix = log.suffix || '.txt';
-		valve.pattern = log.pattern || '%h %l %u %t &quot;%r&quot; %s %b';
-		
+				
 		var xml = new xml2js.Builder().buildObject(result);
 		fs.writeFileSync(serverxml, xml, {encoding:'utf8'});
     });

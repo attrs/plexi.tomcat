@@ -6,7 +6,12 @@ var http = require('http');
 var chalk = require('chalk');
 var ini = require('ini');
 var osenv = require("osenv");
+var Download = require('download');
+var progress = require('download-status');
+var wrench = require('wrench');
+var ProgressBar = require('progress');
 var inquirer = require("inquirer");
+var targz = require('tar.gz');
 
 function start() {
 	var detected_javahome = [];
@@ -61,162 +66,96 @@ function start() {
 			}
 		}
 	], function( answers ) {
-		var url;
-		var version = answers.version;
-
-		if( version === '6' ) {
-		} else if() {
-		}
-
-		console.dir(answers);
-
-		return true;
-
-
-		var url = geturl(version);
-		var filename = url.substring(url.lastIndexOf('/') + 1);
-
-		// check cache, if file exists in cache, use it
-		var userhome = osenv.home();
-		var cachedir = path.resolve(userhome, '.plexi.wordpress');
-		var cachefile = path.resolve(cachedir, filename);
-		var dest = path.resolve(__dirname, '..', 'wordpress');
-		if( !fs.existsSync(cachedir) ) {
-			try {
-				fs.mkdirSync(cachedir);
-			} catch(err) {
-				cachedir = path.resolve(__dirname, '..', 'download');
-				cachefile = path.resolve(cachedir, filename);
-			}
-		}
-
-		if( !fs.existsSync(cachefile) ) {
-			new Download({ extract: true, strip: 1, mode: '755' })
-				.get(url)
-				.dest(cachefile)
-				.use(function(instance, url) {
-					process.stdout.write(chalk.green('Download\n'));
-				})
-				.use(progress())
-				.run(function (err, files, stream) {
-					if (err) {
-						process.stdout.write(chalk.red('Error\n'));
-						console.log(chalk.red(err));
-						return task_install();
-					}
-					install();
-				}
-			);
-		}
+		install(answers.version, function(err, dir) {
+			if( err ) return console.error('[tomcat] install fail');
+			console.log('[tomcat] installed successfully "' + dir + '"');
+		});
 	});
 };
 
-start();
+function install(version, callback) {
+	var url, filename;
+	
+	if( version === '6' ) {
+		url = 'http://apache.mirror.cdnetworks.com/tomcat/tomcat-6/v6.0.43/bin/apache-tomcat-6.0.43.tar.gz';
+	} else if( version === '7' ) {
+		url = 'http://apache.mirror.cdnetworks.com/tomcat/tomcat-7/v7.0.59/bin/apache-tomcat-7.0.59.tar.gz';
+	} else {
+		url = 'http://apache.mirror.cdnetworks.com/tomcat/tomcat-8/v8.0.18/bin/apache-tomcat-8.0.18.tar.gz';
+	}
+	
+	// check cache, if file exists in cache, use it
+	var filename = url.substring(url.lastIndexOf('/') + 1);
+	var userhome = osenv.home();
+	var cachedir = path.resolve(userhome, '.plexi', 'tomcat');
+	var cachefile = path.resolve(cachedir, filename);
+	var dest = path.resolve(__dirname, '..', 'tomcat');
+	if( !fs.existsSync(cachedir) ) {
+		try {
+			wrench.mkdirSyncRecursive(cachedir, 0777);
+		} catch(err) {
+			cachedir = path.resolve(__dirname, '..', 'download');
+			cachefile = path.resolve(cachedir, filename);
+			wrench.mkdirSyncRecursive(cachedir);
+		}
+	}
 
+	var copy = function() {		
+		if( fs.existsSync(dest) ) wrench.rmdirSyncRecursive(dest);
 
+		var files = wrench.readdirSyncRecursive(cachefile);
+		var total = files.length;
+		var current = 0;
 
-function geturl(version) {
-	/*
-	http://apache.mirror.cdnetworks.com/tomcat/tomcat-6/v6.0.43/bin/apache-tomcat-6.0.43.tar.gz
-	http://apache.mirror.cdnetworks.com/tomcat/tomcat-7/v7.0.59/bin/apache-tomcat-7.0.59.tar.gz
-	http://apache.mirror.cdnetworks.com/tomcat/tomcat-8/v8.0.18/bin/apache-tomcat-8.0.18.tar.gz
-	*/
-	return (!version || version === 'latest') ? 'http://wordpress.org/latest.tar.gz' : 'http://wordpress.org/wordpress-' + version + '.tar.gz';
+		var bar = new ProgressBar(chalk.cyan('   install') + ' : [:bar] :current/:total', {
+			width: 20,
+			total: total,
+			callback: function() {
+				console.log();
+			}
+		});
+
+		wrench.copyDirSyncRecursive(cachefile, dest, {
+			forceDelete: false,
+			preserveFiles: true,
+			filter: function() {
+				bar.tick();
+			}
+		});
+		
+		if( callback ) callback(null, dest);
+	};
+
+	if( !fs.existsSync(cachefile) ) {
+		new Download({ mode: '755' })
+		    .get(url)
+		    .dest(cachedir)
+			.use(function(instance, url) {
+				process.stdout.write(chalk.green('Download\n'));
+			})
+			.use(progress())
+			.run(function (err, files, stream) {
+			    if (err) {
+					fs.unlinkSync(cachefile);
+					return console.log(chalk.red(err));
+				}
+				
+				new targz().extract(cachefile, cachedir, function(err){
+				    if(err) {
+						fs.unlinkSync(cachefile);
+						return console.log(chalk.red(err));
+					}
+					
+					var extracted = cachefile.substring(0, cachefile.toLowerCase().lastIndexOf('.tar.gz'));
+					fs.unlinkSync(cachefile);
+					fs.renameSync(extracted, cachefile);
+				    copy();
+				});
+			});
+	} else {
+		process.stdout.write(chalk.green('Copy Files...\n'));
+		copy();
+	}
 }
 
-var task_install = function () {
-	process.stdin.resume();
-	process.stdout.write(chalk.yellow('tomcat version: ') + '' + chalk.gray('(8) '));
-	
-	process.stdin.once('data', function(inputVersion) {
-		process.stdin.pause();	
-		inputVersion = inputVersion.replace(/[\n\r]/g, ' ').trim() || 'latest';
-		var version = inputVersion;
-
-		var download = function() {
-			var url = geturl(version);
-			var filename = url.substring(url.lastIndexOf('/') + 1);
-			process.stdout.write(chalk.green('checking version: ' + version + ' (' + url + ') ... '));
-	
-			// check cache, if file exists in cache, use it
-			var userhome = osenv.home();
-			var cachedir = path.resolve(userhome, '.plexi.wordpress');
-			var cachefile = path.resolve(cachedir, filename);
-			var dest = path.resolve(__dirname, '..', 'wordpress');
-			if( !fs.existsSync(cachedir) ) {
-				try {
-					fs.mkdirSync(cachedir);
-				} catch(err) {
-					cachedir = path.resolve(__dirname, '..', 'download');
-					cachefile = path.resolve(cachedir, filename);
-				}
-			}
-	
-			var install = function() {		
-				if( fs.existsSync(dest) ) rmdirRecursive(dest);
-		
-				var files = wrench.readdirSyncRecursive(cachefile);
-				var total = files.length;
-				var current = 0;
-
-				var bar = new ProgressBar(chalk.cyan('   install') + ' : [:bar] :current/:total', {
-					width: 20,
-					total: total,
-					callback: function() {
-						console.log();
-					}
-				});
-
-				wrench.copyDirSyncRecursive(cachefile, dest, {
-					forceDelete: false,
-					preserveFiles: true,
-					filter: function() {
-						bar.tick();
-					}
-				});
-			}
-	
-			if( !fs.existsSync(cachefile) ) {
-				new Download({ extract: true, strip: 1, mode: '755' })
-				    .get(url)
-				    .dest(cachefile)
-					.use(function(instance, url) {
-						process.stdout.write(chalk.green('Download\n'));
-					})
-					.use(progress())
-					.run(function (err, files, stream) {
-					    if (err) {
-							process.stdout.write(chalk.red('Error\n'));
-							console.log(chalk.red(err));
-					    	return task_install();
-					    }
-						install();
-					}
-				);
-			} else {
-				process.stdout.write(chalk.green('From Cache\n'));
-				install();
-			}
-		};
-		download();
-	});
-};
-
-var task_javalocation = function () {
-	process.stdin.resume();
-	process.stdout.write(chalk.yellow('java home: ') + '' + chalk.gray('(default) '));
-	
-	process.stdin.once('data', function(location) {
-		process.stdin.pause();	
-		location = location.replace(/[\n\r]/g, ' ').trim();		
-		
-		if(	phplocation ) {
-			var config = {JAVA_HOME: location};
-			fs.writeFileSync(path.resolve(__dirname, '..', 'config.ini'), ini.stringify(config))
-		}
-	});
-};
-
-//process.stdin.setEncoding('utf-8');
-//task_install();
-//task_javalocation();
+start();
