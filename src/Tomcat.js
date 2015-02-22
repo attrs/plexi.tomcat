@@ -15,7 +15,7 @@ var ENV = {}, PORT, tomcat_process;
 
 if( ini.javahome ) ENV.JAVA_HOME = ini.javahome;
 
-var startup = function() {
+var startup = function(stdout, stderr) {
 	var cwd = path.resolve(__dirname, '../tomcat', 'bin');
 	var command = path.resolve(cwd, 'catalina.sh');
 	
@@ -43,12 +43,9 @@ var startup = function() {
 	
 	tomcat_process.stdout.setEncoding('utf8');
 	tomcat_process.stderr.setEncoding('utf8');
-	tomcat_process.stdout.on('data', function(data) {
-		console.log(data);
-	});
-	tomcat_process.stderr.on('data', function (data) {
-		console.error(data);
-	});
+	
+	if( stdout ) tomcat_process.stdout.pipe(stdout);
+	if( stderr || stdout ) tomcat_process.stderr.pipe(stderr || stdout);
 };
 
 var shutdown = function() {

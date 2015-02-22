@@ -97,13 +97,16 @@ var tomcatrouter = function(options) {
 
 module.exports = {
 	start: function(ctx) {
-		var pref = ctx.preference || {};
+		var pref = ctx.preference;
 		
 		if( !pref ) {
 			pref = ctx.application.preferences.set('plexi.tomcat', {
+				console: false,
 				env: {
 					"JAVA_HOME": "",
 					"JAVA_OPTS": "-server -Djava.awt.headless=true -XX:+UseConcMarkSweepGC -XX:MaxPermSize=64m -Xmx256m"
+				},
+				contexts: {	
 				},
 				port: 29090
 			});
@@ -127,7 +130,7 @@ module.exports = {
 			filter: tomcatrouter(pref.router)
 		});
 
-		Tomcat.startup();
+		Tomcat.startup((pref.console ? process.stdout : null), (pref.console ? process.stderr : null));
 		Tomcat.router = tomcatrouter;
 		return Tomcat;
 	},
