@@ -59,5 +59,5 @@ if( 'stop' in argv || 'shutdown' in argv ) {
 	console.log('docbase', docbase || '(default)');
 	console.log('logdir', logdir || '(default)');
 	
-	Tomcat.startup();
+	Tomcat.startup(process.stdout, process.stderr);
 }
