@@ -60,7 +60,7 @@ function start() {
 			type: "list",
 			name: "version",
 			message: "Tomcat Version",
-			choices: [ "6.0.43", "7.0.59", "8.0.18" ],
+			choices: [ "8.0.18",  "7.0.59", "6.0.43"],
 			filter: function(value) {
 				return value[0];
 			}
