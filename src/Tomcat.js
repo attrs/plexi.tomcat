@@ -5,23 +5,16 @@ var xml2js = require('xml2js');
 var util = require('attrs.util');
 var wrench = require('wrench');
 
-var rmdirRecursive = function(path, includeself) {
-    var files = [];
-    if( fs.existsSync(path) ) {
-        files = fs.readdirSync(path);
-        files.forEach(function(file,index){
-            var curPath = path + "/" + file;
-            if(fs.lstatSync(curPath).isDirectory()) { // recurse
-                rmdirRecursive(curPath);
-            } else { // delete file
-                fs.unlinkSync(curPath);
-            }
-        });
-        if( includeself !== false ) fs.rmdirSync(path);
-    }
-};
+var ini = {};
+try {
+	ini = require('ini').parse(fs.readFileSync(path.resolve(__dirname, '../config.ini'), 'utf-8'));
+} catch(err) {
+}
 
 var ENV = {}, PORT, tomcat_process;
+
+if( ini.javahome ) ENV.JAVA_HOME = ini;
+
 var startup = function() {
 	var cwd = path.resolve(__dirname, '../tomcat', 'bin');
 	var command = path.resolve(cwd, 'catalina.sh');
@@ -103,7 +96,8 @@ var removeContext = function(docbase) {
 };
 
 var clearContexts = function() {
-	rmdirRecursive(contextdir, false);
+	wrench.rmdirSyncRecursive(contextdir);
+	wrench.mkdirSyncRecursive(contextdir, 0777);
 	contexts = {};
 };
 

@@ -68,6 +68,9 @@ function start() {
 	], function( answers ) {
 		install(answers.version, function(err, dir) {
 			if( err ) return console.error('[tomcat] install fail');
+			
+			fs.writeFileSync(path.resolve(__dirname, '..', 'config.ini'), ini.stringify(answers));
+			
 			console.log('[tomcat] installed successfully "' + dir + '"');
 		});
 	});
