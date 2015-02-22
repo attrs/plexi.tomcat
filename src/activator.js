@@ -99,7 +99,16 @@ module.exports = {
 	start: function(ctx) {
 		var pref = ctx.preference || {};
 		
-		console.log('pref', pref);
+		if( !pref ) {
+			pref = ctx.application.preferences.set('plexi.tomcat', {
+				env: {
+					"JAVA_HOME": "",
+					"JAVA_OPTS": "-server -Djava.awt.headless=true -XX:+UseConcMarkSweepGC -XX:MaxPermSize=64m -Xmx256m"
+				},
+				port: 29090
+			});
+			ctx.application.preferences.save();
+		}
 		
 		Tomcat.clearContexts();
 		

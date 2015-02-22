@@ -51,10 +51,10 @@ var startup = function() {
 	tomcat_process.stdout.setEncoding('utf8');
 	tomcat_process.stderr.setEncoding('utf8');
 	tomcat_process.stdout.on('data', function(data) {
-		//console.log(data);
+		console.log(data);
 	});
 	tomcat_process.stderr.on('data', function (data) {
-		//console.error(data);
+		console.error(data);
 	});
 };
 
