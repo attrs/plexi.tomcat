@@ -76,9 +76,9 @@ function start() {
 };
 
 var urls = {
-	'6': 'http://apache.mirror.cdnetworks.com/tomcat/tomcat-6/v6.0.43/bin/apache-tomcat-6.0.43.tar.gz',
-	'7': 'http://apache.mirror.cdnetworks.com/tomcat/tomcat-7/v7.0.59/bin/apache-tomcat-7.0.59.tar.gz',
-	'8': 'http://apache.mirror.cdnetworks.com/tomcat/tomcat-8/v8.0.18/bin/apache-tomcat-8.0.18.tar.gz',
+	'6': 'http://archive.apache.org/dist/tomcat/tomcat-6/v6.0.44/bin/apache-tomcat-6.0.44.tar.gz',
+	'7': 'http://archive.apache.org/dist/tomcat/tomcat-7/v7.0.62/bin/apache-tomcat-7.0.62.tar.gz',
+	'8': 'http://archive.apache.org/dist/tomcat/tomcat-8/v8.0.22/bin/apache-tomcat-8.0.22.tar.gz',
 };
 
 function install(version, callback) {
@@ -141,13 +141,13 @@ function install(version, callback) {
 				.use(progress())
 				.run(function (err, files, stream) {
 				    if (err) {
-						fs.unlinkSync(cachefile);
+						if( fs.existsSync(cachefile) ) fs.unlinkSync(cachefile);
 						return callback(err);
 					}
 				
 					new targz().extract(cachefile, cachedir, function(err){
 					    if(err) {
-							fs.unlinkSync(cachefile);
+							if( fs.existsSync(cachefile) ) fs.unlinkSync(cachefile);
 							return callback(err);
 						}
 					
